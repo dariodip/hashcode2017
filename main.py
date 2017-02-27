@@ -35,7 +35,7 @@ def main(fname):
         video_request = video_reqs.get()  # get most requested video's object
         # video_obj: dict {'vid': video_id, 'end_point_id': requiring_endpoint_id}
         # req_times: priority
-        video_obj,req_times = video_request[1],video_request[0]
+        video_obj, req_times = video_request[1], video_request[0]
         most_requested_video_id, requiring_ep = video_obj.video_id, video_obj.end_point_id
 
         # Video size
@@ -44,18 +44,19 @@ def main(fname):
         if current_video_size > load_info['cache_size']:  # this cannot happen, but...
             print("Happened...")
             continue
+
         # Get the Endpoint that is requesting the current video
         requesting_endpoint = endpoints[requiring_ep]
         caches_buffer = list()  # to reinsert still valid caches
-        while not requesting_endpoint.caches.empty():  # try to insert in each cache connected at the enpoint starting from faster one
+        while not requesting_endpoint.caches.empty():  # try to insert in each cache starting from faster one
             faster_cache_entry = requesting_endpoint.caches.get()
             current_cache_latency = faster_cache_entry[0]
             current_cache = faster_cache_entry[1]
-            if current_cache_latency >= requesting_endpoint.latency_to_datacenter:  # do not insert in cache if latency is higher
+            if current_cache_latency >= requesting_endpoint.latency_to_datacenter:  # not worth adding in cache
                 break
-            if current_cache.remaining_size >= current_video_size : # if there is enough space in the cache
-                if most_requested_video_id not in inserted_videos_sets[requiring_ep] \
-                    and most_requested_video_id not in current_cache.inserted_videos :
+            if current_cache.remaining_size >= current_video_size:  # if there is enough space in the cache
+                if most_requested_video_id not in inserted_videos_sets[requiring_ep] and \
+                most_requested_video_id not in current_cache.inserted_videos:
                     current_cache.insert_video({'id': most_requested_video_id, 'size': current_video_size})
                     inserted_videos_sets[requiring_ep].add(most_requested_video_id)
             if current_cache.remaining_size >= min_video_size:  # enough space for at least another video
