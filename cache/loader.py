@@ -1,41 +1,41 @@
 from queue import PriorityQueue
-from readytogo.cache import mmm
-from itertools import groupby
+from readytogo.cache import cache_objects as co
 
 
 def load(file):
-    video_list = list()
+
     with open(file, 'r') as f:
-        v, e, r, c, cs = [int(_) for _ in f.readline().split(' ')]
+        # read first line
+        v, e, r, c, cache_size = [int(_) for _ in f.readline().split(' ')]
+        # read videos size
         line = f.readline().split(' ')
-        video_list = {i: int(j) for i,j in zip(range(len(line)), line)}
-        minimum_video_size = min([int(video_list[_]) for _ in video_list])
+        video_list = {i: int(j) for i, j in zip(range(len(line)), line)}
+        minimum_video_size = min([int(_) for _ in line])
         if not len(video_list) == v:
-            raise Exception("Ma cosa?")
+            raise Exception("Something wrong in parsing")
 
-        caches = {i: mmm.Cache(cs) for i in range(c)}
-        endpoints = {}
-        video_reqs = PriorityQueue()
-        for i in range(e):
-            latency1, n_cache = [int(_) for _ in f.readline().split(' ')]
-            first_pq = PriorityQueue()
-            for j in range(n_cache):
-                cache_id, cache_lat = [int(_) for _ in f.readline().split(' ')]
-                first_pq.put((cache_lat, caches[cache_id]))
-            ep = mmm.EndPoint(first_pq, latency1)
-            endpoints[i] = ep
+        caches = {i: co.Cache(cache_size) for i in range(c)}  # dict {cache_id : cache_object}
+        endpoints = {}  # dict {endpoint_id: endpoint_object}
+        video_requests = PriorityQueue()  # Priority Queue (-video_request_times, (video_object))
 
-        for i in range(r):
+        for i in range(e):  # read each endpoint info
+            latency_to_datacenter, cache_count = [int(_) for _ in f.readline().split(' ')]
+            cache_pq = PriorityQueue()  # PriorityQueue (cache_latency, cache_object)
+            for j in range(cache_count):
+                cache_id, cache_latency = [int(_) for _ in f.readline().split(' ')]
+                cache_pq.put((cache_latency, caches[cache_id]))
+            endpoint = co.EndPoint(cache_pq, latency_to_datacenter)
+            endpoints[i] = endpoint
+
+        for i in range(r):  # read each request
             video_id, end_point_id, request_times = [int(_) for _ in f.readline().split(' ')]
-            if video_list[video_id] > cs:
+            if video_list[video_id] > cache_size:
                 continue
-            vid = mmm.Video(video_list[video_id], {'vid':video_id, 'epid':end_point_id})
-            video_reqs.put((-request_times, vid))
+            video = co.Video(video_list[video_id], video_id, end_point_id)
+            video_requests.put((-request_times, video))
 
-        if not len(endpoints) == e:
-            raise Exception("Ma cosa?")
-        if not len(caches) == c:
-            raise Exception("Ma cosa?")
+        if not len(endpoints) == e or not len(caches) == c:
+            raise Exception("Something wrong in parsing")
 
-        return caches, endpoints,video_reqs, video_list, {'v': v, 'e': e, 'r': r, 'c': c, 'cs': cs}, minimum_video_size
-
+        return caches, endpoints, video_requests, video_list, \
+            {'v': v, 'e': e, 'r': r, 'c': c, 'cache_size': cache_size}, minimum_video_size
