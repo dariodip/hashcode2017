@@ -1,5 +1,5 @@
 from queue import PriorityQueue
-from readytogo.cache import cache_objects as co
+from cache import cache_objects as co
 
 
 def load(file):
