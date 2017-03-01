@@ -1,4 +1,4 @@
-from queue import PriorityQueue
+from queue import PriorityQueue, Queue
 from cache import cache_objects as co
 
 
@@ -39,7 +39,7 @@ def load(file):
             req.required_video = video
             req.add_ep(endpoints[end_point_id], request_times)
 
-        video_reqs = PriorityQueue(maxsize=len(requests))
+        video_reqs = Queue(maxsize=len(requests))
         for req in requests:
             request = requests[req]
             if request.required_video is None:

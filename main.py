@@ -57,7 +57,8 @@ def main(fname):
             cache_score = 0
             for ep in req_obj.requiring_ep:
                 if cache.cache_id in ep.caches_dict:
-                    cache_score += (req_times * (ep.latency_to_datacenter - ep.caches_dict[cache.cache_id]))
+                    cache_score += ((req_times * (ep.latency_to_datacenter - ep.caches_dict[cache.cache_id]))
+                                    * 1  -current_video_size / load_info['cache_size'])  # weight
             if cache_score > 0:
                 all_scores.append(Score(cache_score, req_obj.required_video, cache))
 
