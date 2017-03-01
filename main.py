@@ -1,6 +1,7 @@
 from cache import loader
 import os
 import logging
+from cache.cache_objects import Score
 
 log = logging.getLogger("main")
 
@@ -31,38 +32,44 @@ def main(fname):
         loader.load(os.path.join(os.path.curdir, fname))
     # a dict that stores, for each video, the cache in which it was added (to avoid duplicates)
     inserted_videos_sets = {i: set() for i in range(len(endpoints))}
+
+    all_scores = list()
+
     while not video_reqs.empty():  # starting from most requested video until the queue was empty
         video_request = video_reqs.get()  # get most requested video's object
         # video_obj: dict {'vid': video_id, 'end_point_id': requiring_endpoint_id}
         # req_times: priority
-        video_obj, req_times = video_request[1], video_request[0]
-        most_requested_video_id, requiring_ep = video_obj.video_id, video_obj.end_point_id
-
+        req_obj, req_times = video_request[1], -video_request[0]
         # Video size
-        current_video_size = video_sizes[most_requested_video_id]
+        current_video_size = req_obj.required_video.size
 
         if current_video_size > load_info['cache_size']:  # this cannot happen, but...
             print("Happened...")
             continue
+        if len(req_obj.requiring_ep) == 0:  # this cannot happen, but...
+            print("Happened...")
+            continue
 
-        # Get the Endpoint that is requesting the current video
-        requesting_endpoint = endpoints[requiring_ep]
-        caches_buffer = list()  # to reinsert still valid caches
-        while not requesting_endpoint.caches.empty():  # try to insert in each cache starting from faster one
-            faster_cache_entry = requesting_endpoint.caches.get()
-            current_cache_latency = faster_cache_entry[0]
-            current_cache = faster_cache_entry[1]
-            if current_cache_latency >= requesting_endpoint.latency_to_datacenter:  # not worth adding in cache
-                break
-            if current_cache.remaining_size >= current_video_size:  # if there is enough space in the cache
-                if most_requested_video_id not in inserted_videos_sets[requiring_ep] and \
-                most_requested_video_id not in current_cache.inserted_videos:
-                    current_cache.insert_video({'id': most_requested_video_id, 'size': current_video_size})
-                    inserted_videos_sets[requiring_ep].add(most_requested_video_id)
-            if current_cache.remaining_size >= min_video_size:  # enough space for at least another video
-                caches_buffer.append(faster_cache_entry)
-        for i in caches_buffer:  # reinsert in the queue
-            requesting_endpoint.caches.put(i)
+        for cache_k in caches:
+            cache = caches[cache_k]
+            if cache.remaining_size < req_obj.required_video.size:
+                continue
+            cache_score = 0
+            for ep in req_obj.requiring_ep:
+                if cache.cache_id in ep.caches_dict:
+                    cache_score += (req_times * (ep.latency_to_datacenter - ep.caches_dict[cache.cache_id]))
+            if cache_score > 0:
+                all_scores.append(Score(cache_score, req_obj.required_video, cache))
+
+    sorted_scores = sorted(all_scores, key=lambda x: x.score, reverse=True)
+    for attempt in sorted_scores:
+        score, video, cache = attempt.score, attempt.video, attempt.cache
+        if cache.remaining_size < video.size:
+            continue
+        if video.video_id in cache.inserted_videos:
+            continue
+        cache.insert_video(video)
+
 
     # Prettify the solution
     new_cache = prettify_cache(caches)
