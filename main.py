@@ -31,7 +31,7 @@ def main(fname):
     caches, endpoints, video_reqs, video_sizes, load_info, min_video_size = \
         loader.load(os.path.join(os.path.curdir, fname))
     # a dict that stores, for each video, the cache in which it was added (to avoid duplicates)
-    inserted_videos_sets = {i: set() for i in range(len(endpoints))}
+    inserted_videos_sets = {i: set() for i in range(load_info['v'])}
 
     all_scores = list()
 
@@ -68,7 +68,10 @@ def main(fname):
             continue
         if video.video_id in cache.inserted_videos:
             continue
-        cache.insert_video(video)
+        cache_eps = set([cache.connected_ep[i] for i in cache.connected_ep])
+        if len(cache_eps.intersection(inserted_videos_sets[video.video_id])) == 0:
+            cache.insert_video(video)
+            inserted_videos_sets[video.video_id].update(cache_eps)
 
 
     # Prettify the solution
